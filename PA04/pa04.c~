@@ -1,0 +1,20 @@
+#include<stdio.h>
+#include<stdlib.h>
+#include "bmp.h"
+
+int main(int argc, char * argv[])
+{
+   BMP_Image *image;
+   BMP_Image *imagenew; 
+   FILE *fptr = fopen("purduetrain.bmp", "rb");
+   FILE *fptr2 = fopen("output", "wb");
+   image = Read_BMP_Image(fptr);
+   imagenew = Convert_24_to_16_BMP_Image_with_Dithering(image);
+   int c = 0;
+   c = Write_BMP_Image(fptr2, imagenew);
+   fclose(fptr);
+   fclose(fptr2);
+   Free_BMP_Image(image);
+   Free_BMP_Image(imagenew); 
+   return 0;
+}

@@ -1,0 +1,122 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include "bmp.h"
+
+BMP_Image *Convert_24_to_16_BMP_Image_with_Dithering(BMP_Image *image)
+{
+   int paddingw = 0;
+   paddingw = ((image -> header.width) * (image -> header.bits))/8;
+   if (paddingw % 4 != 0)
+   {
+      paddingw = 4 - (paddingw % 4);
+      if (paddingw == 4)
+      {
+         paddingw = 0;
+      }
+   }
+   else
+   {
+      paddingw = 0;
+   }
+   int rbytes = ((image -> header.width * image -> header.bits) / 8) + paddingw;
+   int i = 0;
+   int j = 0;
+   int red = 0;
+   int green = 0;
+   int blue = 0;
+   int red1 = 0;
+   int green1 = 0;
+   int blue1 = 0;
+   uint16_t pixel = 0;
+   int paddingx = 0;
+   int rbytesn = 0;
+   int cbytesn = 0;
+   int quantr = 0;
+   int quantb = 0;
+   int quantg = 0;
+   BMP_Image *image_n;
+   BMP_Image *imagecopy;
+   image_n = malloc(sizeof(BMP_Image));
+   if (image_n == NULL)
+   {
+      return NULL;
+   }
+   //creating copy of original image
+   imagecopy = malloc(sizeof(BMP_Image));
+   imagecopy -> data = calloc(image -> header.imagesize,1);
+   for (i = 0; i < image -> header.imagesize; i++)
+   {
+      imagecopy->data[i] = image -> data[i];
+   }
+   //calculating padding and parameters for 16 bit image
+   paddingx = image -> header.width * 2;
+   if (paddingx % 4 != 0)
+   {
+      paddingx = 4 - (paddingx % 4);
+      if (paddingx == 4)
+      {
+         paddingx = 0;
+      }
+   }
+   else
+   {
+      paddingx = 0;
+   }
+   image_n -> header = image -> header;
+   image_n -> header.bits = 16;
+   image_n -> header.imagesize = image -> header.height * ((image -> header.width * 2) + paddingx);
+   image_n -> header.size = image_n -> header.imagesize + 54;
+   image_n -> data = calloc(image_n -> header.imagesize, 1);
+   rbytesn = 2 * image_n -> header.width + paddingx;
+   cbytesn = 2 * image_n -> header.height;
+   for (i = image -> header.height - 1; i >= 0; i--)
+   {
+      for (j = 0; j < image -> header.width; j++)
+      {
+         blue = imagecopy -> data[(i * rbytes) + j * 3];
+         green = imagecopy -> data[(i * rbytes) + j * 3 + 1];
+         red = imagecopy -> data[(i * rbytes) + j * 3 + 2];
+         red1 = red >> 3;
+         green1 = green >> 3;
+         blue1 = blue >> 3;
+	 quantr = red - ((red1 * 255)/31);
+         quantg = green - ((green1 * 255)/31);
+         quantb = blue - ((blue1 * 255)/31);
+ 	 // blue
+         imagecopy -> data[(i * rbytes) + (j + 1) * 3] = addcheck(16 * imagecopy -> (data[(i * rbytes) + (j + 1) * 3] + quantb * 7)/16);
+         imagecopy -> data[(i-1) * rbytes + (j - 1) * 3] = addcheck(16 * imagecopy -> (data[((i-1) * rbytes) + (j - 1) * 3] + quantb*3)/16); 
+         imagecopy -> data[(i-1) * rbytes + j * 3] = addcheck(16 * imagecopy -> (data[((i-1) * rbytes) + j * 3] + quantb*5)/16); 
+         imagecopy -> data[(i-1) * rbytes + (j + 1) * 3] = addcheck(16 * imagecopy -> (data[((i-1) * rbytes) + (j + 1) * 3] + quantb*1)/16); 
+         //green
+	 imagecopy -> data[(i * rbytes) + (j + 1) * 3 + 1] = addcheck(16 *imagecopy -> (data[(i * rbytes) + (j + 1) * 3 + 1] + quantg * 7)/16);
+         imagecopy -> data[(i-1) * rbytes + (j - 1) * 3 + 1] = addcheck(16 *imagecopy -> (data[((i-1) * rbytes) + (j - 1) * 3 + 1] + quantg*3)/16); 
+         imagecopy -> data[(i-1) * rbytes + j * 3 + 1] = addcheck(16 * imagecopy -> (data[((i-1) * rbytes) + j * 3 + 1] + quantg*5)/16); 
+         imagecopy -> data[(i-1) * rbytes + (j + 1) * 3 + 1] = addcheck(16 * imagecopy -> (data[((i-1) * rbytes) + (j + 1) * 3 + 1] + quantg*1)/16); 
+         //red 
+	 imagecopy -> data[(i * rbytes) + (j + 1) * 3 + 2] = addcheck(16 *imagecopy -> (data[(i * rbytes) + (j + 1) * 3 + 2] + quantr * 7)/16);
+         imagecopy -> data[(i-1) * rbytes + (j - 1) * 3 + 2] = addcheck(16 * imagecopy -> (data[((i-1) * rbytes) + (j - 1) * 3 + 2] + quantr*3)/16); 
+         imagecopy -> data[(i-1) * rbytes + j * 3 + 2] = addcheck(16 * imagecopy -> (data[((i-1) * rbytes) + j * 3 + 2] + quantr*5)/16); 
+         imagecopy -> data[(i-1) * rbytes + (j + 1) * 3 + 2] = addcheck(16 * imagecopy -> (data[((i-1) * rbytes) + (j + 1) * 3 + 2] + quantr*1)/16); 
+         pixel = (red << 10) | (green << 5) | blue;
+         image_n -> data[(i * rbytesn) + j * 2] =  pixel & 0x00ff;
+         image_n -> data[(i * rbytesn) + j * 2 + 1] =  pixel >> 8;
+      }
+   }
+   return image_n;
+
+}
+
+int addcheck(int num)
+{
+   if (num > 255)
+   {
+      num = 255;
+      return num;
+   }
+   else if (num < 0)
+   {
+      num = 0;
+      return num;
+   }
+   return num;
+}
